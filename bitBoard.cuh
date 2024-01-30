@@ -16,10 +16,19 @@
 #include <stdio.h>
 #include <thrust/device_vector.h>
 
-//TODO:
+/// <summary>
+/// TODO: Documentation
+/// </summary>
 struct movesList {
 	int pawnMoves;
 	int rookMoves;
+	int knightMoves;
+	int bishopMoves;
+	int queenMoves;
+	int kingMoves;
+
+	thrust::device_vector<unsigned long long> allChanges;
+
 };
 
 class bitBoard
@@ -140,19 +149,19 @@ public:
 
 
 
-
-
-
-
-
-
 		if (amBlackTemp) {
 			flipSide();
 		}
-
+		//TODO: The changes may need to be flipped back as well
 		return {
-
-		}
+			pawnChanges,
+			rookChanges,
+			knightChanges,
+			bishopChanges,
+			queenChanges,
+			kingChanges,
+			allChanges
+		};
 	}
 };
 
