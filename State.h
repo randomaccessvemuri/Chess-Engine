@@ -1,7 +1,7 @@
 #pragma once
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
-#include "bitBoard.h"
+#include "bitBoard.cuh"
 /// <summary>
 /// Holds the state of the game. This includes the bitboards for each player, and whose turn it is, whether one is in check, etc.
 /// </summary>

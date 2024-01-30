@@ -9,13 +9,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="bitBoard.cpp">
+    <ClCompile Include="bitBoard.cu">
       <Filter>Classes</Filter>
     </ClCompile>
     <ClCompile Include="State.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="bitBoard.h">
+    <ClInclude Include="bitBoard.cuh">
       <Filter>Classes</Filter>
     </ClInclude>
     <ClInclude Include="State.h" />

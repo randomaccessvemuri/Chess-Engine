@@ -1,15 +1,15 @@
-#include "bitBoard.h"
+#include "bitBoard.cuh"
 
 /// <summary>
 /// Flips the board vertically to represent the black side using stdlib.h's _byteswap_uint64. Can be used to flip the board back to the white side.
 /// </summary>
 /// <returns></returns>
 
-inline __device__ __host__ bool bitBoard::isBlack() {
+__device__ __host__ bool bitBoard::isBlack() {
 	return amBlack;
 }
 
-inline bitBoard::bitBoard() {
+__device__ __host__ bitBoard::bitBoard() {
 	pawns = 65280; //Second row
 	rooks = 129; //Corners of the first row
 	knights = 66; //Next to the corners
@@ -18,7 +18,7 @@ inline bitBoard::bitBoard() {
 	kings = 16; //In the middle of the first row
 }
 
-inline __host__ void bitBoard::printBoard() {
+__device__ __host__ void bitBoard::printBoard() {
 	unsigned long long mask = 1;
 	for (int i = 0; i < 64; i++) {
 		if (i % 8 == 0) {
@@ -50,7 +50,7 @@ inline __host__ void bitBoard::printBoard() {
 	printf("\n");
 }
 
-inline __device__ __host__ void bitBoard::flipSide() {
+__device__ __host__ void bitBoard::flipSide() {
 	//byteswap reverses the order of the bits in the long long 
 	auto byteswapper = [](unsigned long long x) {
 		//Offsetting
