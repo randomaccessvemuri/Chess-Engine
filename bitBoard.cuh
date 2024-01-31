@@ -1,6 +1,6 @@
 /*
 	Bitshifting to generate moves:
-		Bitshift 8 times to move the piece down a row w.r.t the printBoard() method
+		Bitshift left 8 times to move the piece down a row w.r.t the printBoard() method
 		Bitshift left or right once to move the piece left or right
 
 
@@ -16,6 +16,10 @@
 #include <stdio.h>
 #include <thrust/device_vector.h>
 
+
+
+
+
 /// <summary>
 /// TODO: Documentation
 /// </summary>
@@ -26,8 +30,9 @@ struct movesList {
 	int bishopMoves;
 	int queenMoves;
 	int kingMoves;
+	bool bShouldBeBlack;
 
-	thrust::device_vector<unsigned long long> allChanges;
+	unsigned long long *allChanges;
 
 };
 
@@ -69,7 +74,7 @@ public:
 	/// <param name="opponentBoard">The opponent's board state: Useful for pawn diagonal capture, eliminating obstructed bishop, rook and queen moves etc. </param>
 	__device__ movesList generateAllStates(bitBoard opponentBoard) {
 		//The logic here is to reduce the amount of data stored in this and also that I can't really create a device_vector for bitBoard. So I'm going to only store the changes in the board state, which of the changes are for which piece and then generate the new board states as needed
-		thrust::device_vector<unsigned long long> allChanges;
+		unsigned long long allChanges[218];
 		int pawnChanges = 0;
 		int rookChanges = 0;
 		int knightChanges = 0;
@@ -79,53 +84,67 @@ public:
 		bool amBlackTemp = amBlack;		
 
 		if (amBlack) {
-			flipSide();
+			this->flipSide();
+
 
 			//Flip the opponent's board as well
 			opponentBoard.flipSide();
 		}
 
-		int currentBit = 0; //reused for all move generations
+		unsigned char currentBitIndex = 0; //reused for all move generations
+		bool currentBit = 0; //reused for all move generations
 
-		//PAWN MOVES
-		while (currentBit < 64) {
-			if (pawns & (1ULL << currentBit)) {
-				//This is a pawn
-				//Check if it can move forward
-				if (!(pawns & (1ULL << (currentBit + 8)))) {
-					//This pawn can move forward
-					pawnChanges |= (1ULL << (currentBit + 8));
-				}
+		//PAWN MOVES (At most there can be 8 pawns in a side since you can't promote to a pawn)
+		unsigned long long pawnMoves[8];
+		while (currentBitIndex!=64) {
+			
+			currentBit = pawns & (1 << currentBitIndex);
 
-				//Check if it can move forward twice
-				if (currentBit < 16 && !(pawns & (1ULL << (currentBit + 16)))) {
-					//This pawn can move forward twice
-					pawnChanges |= (1ULL << (currentBit + 16));
-				}
+			//This means a pawn was found
+			if (currentBit == 1) {
+				unsigned long long pawnsTemp = pawns;
+				if (currentBitIndex >= 8 && currentBitIndex <= 15) {
+					//DOUBLE SQUARE MOVE
+					//Isolate the required pawn
+					unsigned long long pawnIsolate = pow(2, currentBitIndex);
+					//Remove it from the copy of the original 
+					pawnsTemp = pawnsTemp ^ pawnIsolate;
+					//Move the pawn forward 2 squares
+					pawnIsolate <<= 16;
+					//Add it back to the original
+					pawnsTemp = pawnsTemp | pawnIsolate;
 
-				//Check if it can capture diagonally
-				if (currentBit % 8 != 0 && opponentBoard.pawns & (1ULL << (currentBit + 7))) {
-					//This pawn can capture diagonally
-					pawnChanges |= (1ULL << (currentBit + 7));
+					//DEBUG, REMOVE THIS PLS
+					bitBoard temp;
+					temp.pawns = pawnsTemp;
+					temp.printBoard();
+					//Append to list
+					pawnMoves[pawnChanges] = pawnsTemp;
+					pawnChanges++;
+					
 				}
+				//SINGLE SQUARE MOVE
+				//Isolate the required pawn
+				unsigned long long pawnIsolate = pow(2, currentBitIndex);
+				//Remove it from the copy of the original 
+				pawnsTemp = pawnsTemp ^ pawnIsolate;
+				//Move the pawn forward 2 squares
+				pawnIsolate <<= 16;
+				//Add it back to the original
+				pawnsTemp = pawnsTemp | pawnIsolate;
+				//Append to list
+				pawnMoves[pawnChanges] = pawnsTemp;
+				pawnChanges++;
 
-				if (currentBit % 8 != 7 && opponentBoard.pawns & (1ULL << (currentBit + 9))) {
-					//This pawn can capture diagonally
-					pawnChanges |= (1ULL << (currentBit + 9));
-				}
-
-				//Check if it can capture en passant
-				if (currentBit % 8 != 0 && opponentBoard.pawns & (1ULL << (currentBit - 1))) {
-					//This pawn can capture en passant
-					pawnChanges |= (1ULL << (currentBit + 7));
-				}
-
-				if (currentBit % 8 != 7 && opponentBoard.pawns & (1ULL << (currentBit + 1))) {
-					//This pawn can capture en passant
-					pawnChanges |= (1ULL << (currentBit + 9));
-				}
+				//DEBUG, REMOVE THIS PLS
+				bitBoard temp;
+				temp.pawns = pawnsTemp;
+				temp.printBoard();
 			}
-			currentBit++;
+
+			
+
+			currentBitIndex++;
 		}
 
 
@@ -145,12 +164,14 @@ public:
 		//KING MOVES
 
 
-		//Check Legality
+		/*
+		* CHECKING LEGALITY OF EACH MOVE!
+		*/
 
 
 
 		if (amBlackTemp) {
-			flipSide();
+			this->flipSide();
 		}
 		//TODO: The changes may need to be flipped back as well
 		return {
@@ -160,6 +181,8 @@ public:
 			bishopChanges,
 			queenChanges,
 			kingChanges,
+			amBlackTemp,
+
 			allChanges
 		};
 	}

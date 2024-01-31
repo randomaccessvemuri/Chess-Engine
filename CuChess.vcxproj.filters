@@ -16,14 +16,14 @@
       <Filter>Classes</Filter>
     </ClCompile>
     <ClCompile Include="State.cpp" />
-    <ClCompile Include="moveGenerationTest.cpp">
-      <Filter>Tests</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bitBoard.cuh">
       <Filter>Classes</Filter>
     </ClInclude>
     <ClInclude Include="State.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
   </ItemGroup>
 </Project>

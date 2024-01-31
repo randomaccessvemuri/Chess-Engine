@@ -1,10 +1,29 @@
 #include "bitBoard.cuh"
 
+__device__ __host__ void bitBoard::flipSide() {
+	//byteswap reverses the order of the bits in the long long 
+	auto byteswapper = [](unsigned long long x) {
+		//Offsetting
+		x = ((x >> 32) | (x << 32));
+
+		x = ((x & 0xFFFF0000FFFF0000) >> 16) | ((x & 0x0000FFFF0000FFFF) << 16); // Swap the 16-bit halves
+		x = ((x & 0xFF00FF00FF00FF00) >> 8) | ((x & 0x00FF00FF00FF00FF) << 8); // Swap the 8-bit halves
+		return x;
+		};
+	pawns = byteswapper(pawns);
+	rooks = byteswapper(rooks);
+	knights = byteswapper(knights);
+	bishops = byteswapper(bishops);
+	queens = byteswapper(queens);
+	kings = byteswapper(kings);
+	amBlack = !amBlack;
+
+}
+
 /// <summary>
 /// Flips the board vertically to represent the black side using stdlib.h's _byteswap_uint64. Can be used to flip the board back to the white side.
 /// </summary>
 /// <returns></returns>
-
 __device__ __host__ bool bitBoard::isBlack() {
 	return amBlack;
 }
@@ -50,22 +69,4 @@ __device__ __host__ void bitBoard::printBoard() {
 	printf("\n");
 }
 
-__device__ __host__ void bitBoard::flipSide() {
-	//byteswap reverses the order of the bits in the long long 
-	auto byteswapper = [](unsigned long long x) {
-		//Offsetting
-		x = ((x >> 32) | (x << 32));
 
-		x = ((x & 0xFFFF0000FFFF0000) >> 16) | ((x & 0x0000FFFF0000FFFF) << 16); // Swap the 16-bit halves
-		x = ((x & 0xFF00FF00FF00FF00) >> 8) | ((x & 0x00FF00FF00FF00FF) << 8); // Swap the 8-bit halves
-		return x;
-		};
-	pawns = byteswapper(pawns);
-	rooks = byteswapper(rooks);
-	knights = byteswapper(knights);
-	bishops = byteswapper(bishops);
-	queens = byteswapper(queens);
-	kings = byteswapper(kings);
-	amBlack = !amBlack;
-
-}

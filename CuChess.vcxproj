@@ -88,8 +88,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bitBoard.cu" />
-    <ClCompile Include="moveGenerationTest.cpp" />
     <ClCompile Include="State.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

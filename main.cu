@@ -3,14 +3,18 @@
 #include <iostream>
 #include "bitBoard.cuh"
 
+//Dummy run move generation on single GPU thread
+__global__ void runMoveGen(bitBoard* board) {
+	board->generateAllStates(*board);
+}
+
 
 int main() {
 	bitBoard board;
-	board.printBoard();
-	board.knights <<= 18;
-	std::cout << board.knights;
-	board.printBoard();
-
+	
+	runMoveGen<<<1,1>>>(&board);
+	
+	
 
 
 	return 0;
