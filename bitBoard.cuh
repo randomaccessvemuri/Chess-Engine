@@ -146,7 +146,14 @@ public:
 
 
 		//Check Legality
-
+		/*
+		ILLEGAL MOVES
+		If piece's path gets obstructed by another piece
+		If piece's is overlapping with a friendly piece (opponent piece implies capture)
+		If the side is in check and the move doesn't clear a check
+		
+		
+		*/
 
 
 		if (amBlackTemp) {
