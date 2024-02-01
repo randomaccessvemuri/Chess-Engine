@@ -4,35 +4,45 @@
     <CudaCompile Include="main.cu" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Classes">
-      <UniqueIdentifier>{2bb6fea9-4dc8-4da8-bf41-4dd32a8a1715}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Internal Dependencies">
       <UniqueIdentifier>{2f6034b0-e97c-4373-8a17-0cce529164fb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Base Classes">
+      <UniqueIdentifier>{2bb6fea9-4dc8-4da8-bf41-4dd32a8a1715}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Composite Classes">
+      <UniqueIdentifier>{4cca0f91-243a-4519-b7cd-b86891f14f53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Main Actors">
+      <UniqueIdentifier>{d2da705e-ad25-4c93-96fd-8876a03dc384}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bitBoard.cu">
-      <Filter>Classes</Filter>
-    </ClCompile>
-    <ClCompile Include="State.cpp" />
-    <ClCompile Include="MoveTree.cu">
-      <Filter>Classes</Filter>
+      <Filter>Base Classes</Filter>
     </ClCompile>
     <ClCompile Include="cudaVector.cpp">
       <Filter>Internal Dependencies</Filter>
     </ClCompile>
+    <ClCompile Include="State.cpp">
+      <Filter>Composite Classes</Filter>
+    </ClCompile>
+    <ClCompile Include="MoveTree.cu">
+      <Filter>Main Actors</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bitBoard.cuh">
-      <Filter>Classes</Filter>
-    </ClInclude>
-    <ClInclude Include="State.h" />
-    <ClInclude Include="MoveTree.cuh">
-      <Filter>Classes</Filter>
+      <Filter>Base Classes</Filter>
     </ClInclude>
     <ClInclude Include="cudaVector.h">
       <Filter>Internal Dependencies</Filter>
+    </ClInclude>
+    <ClInclude Include="State.h">
+      <Filter>Composite Classes</Filter>
+    </ClInclude>
+    <ClInclude Include="MoveTree.cuh">
+      <Filter>Main Actors</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

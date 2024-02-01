@@ -91,7 +91,7 @@ public:
 			opponentBoard.flipSide();
 		}
 
-		unsigned char currentBitIndex = 0; //reused for all move generations
+		int currentBitIndex = 0; //reused for all move generations
 		bool currentPawnBit = 0; 
 		bool currentRookBit = 0; 
 		bool currentKnightBit = 0;
@@ -116,59 +116,34 @@ public:
 			
 			//PAWN MOVES
 			currentPawnBit = pawns & (1 << currentBitIndex);
-
-			//OBSTRUCTION CHECK
 			if (currentPawnBit == 1) {
 
 				//These special variables are required because the pawn moves are different based on the opponent piece positions
-				bool bIsObstructed;
-				bool bCanCaptureLeft;
-				bool bCanCaptureRight;
-				bool bCanPromote;
-				bool bCanEnPassantLeft;
-				bool bCanEnPassantRight;
-				bool bCanMoveTwoSquares;
+				
+				//ANDing all of them to combine them into one variable
+				unsigned long long opponentAllCombined = opponentBoard.pawns & opponentBoard.rooks & opponentBoard.knights & opponentBoard.bishops & opponentBoard.queens;
 
-				unsigned long long pawnsTemp = pawns;
-				if (currentBitIndex >= 8 && currentBitIndex <= 15) {
-					//DOUBLE SQUARE MOVE
-					// Check for Obstruction and Capture (Promotion is not possible in any case if the pawn is able to make a double square move)
-					//Isolate the required pawn
-					unsigned long long pawnIsolate = 2 << currentBitIndex;
-					//Remove it from the copy of the original 
-					pawnsTemp = pawnsTemp ^ pawnIsolate;
-					//Move the pawn forward 2 squares
-					pawnIsolate <<= 16;
-					//Add it back to the original
-					pawnsTemp = pawnsTemp | pawnIsolate;
-					//Append to list
-					pawnMoves[pawnChanges] = pawnsTemp;
-					pawnChanges++;
-					#ifdef DEBUG_MODE
-						printf("Pawn at %d can move 2 squares\n", currentBitIndex);
-					#endif // Debug prints
-				}
-				//SINGLE SQUARE MOVE
-				/*
-				* Check for:
-				*	1. Obstruction by another piece
-				*	2. Capture
-				*	3. Promotion
-				*	4. En Passant
-				*/
-				//Isolate the required pawn
-				if (currentBitIndex){
-					unsigned long long pawnIsolate = 2 << currentBitIndex;
-					//Remove it from the copy of the original 
-					pawnsTemp = pawnsTemp ^ pawnIsolate;
-					//Move the pawn forward 2 squares
-					pawnIsolate <<= 16;
-					//Add it back to the original
-					pawnsTemp = pawnsTemp | pawnIsolate;
-					//Append to list
-					pawnMoves[pawnChanges] = pawnsTemp;
-					pawnChanges++;
-				}
+				//Check if the pawn is obstructed by another piece
+				bool bIsObstructed = currentBitIndex + 8 & opponentAllCombined;
+
+				//Check if pawn is checking the king
+				bool bIsCheckingLeft = currentBitIndex + 7 & opponentBoard.kings;
+				bool bIsCheckingRight = currentBitIndex + 9 & opponentBoard.kings;
+
+				//Check if pawn is capturing a piece
+				bool bCanCaptureLeft = currentBitIndex + 7 & opponentAllCombined;
+				bool bCanCaptureRight = currentBitIndex + 9 & opponentAllCombined;
+
+				bool bCanPromote = currentBitIndex + 8 > 63;
+
+				//This is obiviously wrong but I'll tackle it later (TODO)
+				bool bCanEnPassantLeft = false;
+				bool bCanEnPassantRight = false;
+				// Check if pawn is in the 2nd row and the 3rd row is empty
+				bool bCanMoveTwoSquares = currentBitIndex < 16 && currentBitIndex + 16 & opponentAllCombined;
+
+
+				
 			}
 
 
