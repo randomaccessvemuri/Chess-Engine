@@ -84,10 +84,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bitBoard.cuh" />
+    <ClInclude Include="cudaVector.h" />
+    <ClInclude Include="MoveTree.cuh" />
     <ClInclude Include="State.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bitBoard.cu" />
+    <ClCompile Include="cudaVector.cpp" />
+    <ClCompile Include="MoveTree.cu" />
     <ClCompile Include="State.cpp" />
   </ItemGroup>
   <ItemGroup>

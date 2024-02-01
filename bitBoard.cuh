@@ -7,14 +7,14 @@
 	The flipSide thing is to not have to write the same code for black and white pieces. It's easier to just flip the board and then flip it back after generating the moves.
 
 */
-
+#define DEBUG_MODE 
 
 #pragma once
 #include <stdint.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <stdio.h>
-#include <thrust/device_vector.h>
+#include "cudaVector.h"
 
 
 
@@ -92,55 +92,86 @@ public:
 		}
 
 		unsigned char currentBitIndex = 0; //reused for all move generations
-		bool currentBit = 0; //reused for all move generations
+		bool currentPawnBit = 0; 
+		bool currentRookBit = 0; 
+		bool currentKnightBit = 0;
+		bool currentBishopBit = 0;
+		bool currentQueenBit = 0;
+		bool currentKingBit = 0;
 
-		//PAWN MOVES (At most there can be 8 pawns in a side since you can't promote to a pawn)
-		unsigned long long pawnMoves[8];
+		//PAWN MOVES (64 because each of the 8 pawns can make at most 8 possible moves)
+		internals::cudaVector<unsigned long long> pawnMoves(64);
+
+		//ROOK MOVES (30 because each of the 2 rooks can make at most 14 possible moves and 2 for castling)
+		internals::cudaVector<unsigned long long> rookMoves(30);
+
+		//KNIGHT MOVES (16 because each of the 2 knights can make at most 8 possible moves)
+		internals::cudaVector<unsigned long long> knightMoves(16);
+
+		//BISHOP MOVES (26 because each of the 2 bishops can make at most 13 possible moves)
+		internals::cudaVector<unsigned long long> bishopMoves(26);
+
+
 		while (currentBitIndex!=64) {
 			
-			currentBit = pawns & (1 << currentBitIndex);
+			//PAWN MOVES
+			currentPawnBit = pawns & (1 << currentBitIndex);
 
-			//This means a pawn was found
-			if (currentBit == 1) {
+			//OBSTRUCTION CHECK
+			if (currentPawnBit == 1) {
+
+				//These special variables are required because the pawn moves are different based on the opponent piece positions
+				bool bIsObstructed;
+				bool bCanCaptureLeft;
+				bool bCanCaptureRight;
+				bool bCanPromote;
+				bool bCanEnPassantLeft;
+				bool bCanEnPassantRight;
+				bool bCanMoveTwoSquares;
+
 				unsigned long long pawnsTemp = pawns;
 				if (currentBitIndex >= 8 && currentBitIndex <= 15) {
 					//DOUBLE SQUARE MOVE
+					// Check for Obstruction and Capture (Promotion is not possible in any case if the pawn is able to make a double square move)
 					//Isolate the required pawn
-					unsigned long long pawnIsolate = pow(2, currentBitIndex);
+					unsigned long long pawnIsolate = 2 << currentBitIndex;
 					//Remove it from the copy of the original 
 					pawnsTemp = pawnsTemp ^ pawnIsolate;
 					//Move the pawn forward 2 squares
 					pawnIsolate <<= 16;
 					//Add it back to the original
 					pawnsTemp = pawnsTemp | pawnIsolate;
-
-					//DEBUG, REMOVE THIS PLS
-					bitBoard temp;
-					temp.pawns = pawnsTemp;
-					temp.printBoard();
 					//Append to list
 					pawnMoves[pawnChanges] = pawnsTemp;
 					pawnChanges++;
-					
+					#ifdef DEBUG_MODE
+						printf("Pawn at %d can move 2 squares\n", currentBitIndex);
+					#endif // Debug prints
 				}
 				//SINGLE SQUARE MOVE
+				/*
+				* Check for:
+				*	1. Obstruction by another piece
+				*	2. Capture
+				*	3. Promotion
+				*	4. En Passant
+				*/
 				//Isolate the required pawn
-				unsigned long long pawnIsolate = pow(2, currentBitIndex);
-				//Remove it from the copy of the original 
-				pawnsTemp = pawnsTemp ^ pawnIsolate;
-				//Move the pawn forward 2 squares
-				pawnIsolate <<= 16;
-				//Add it back to the original
-				pawnsTemp = pawnsTemp | pawnIsolate;
-				//Append to list
-				pawnMoves[pawnChanges] = pawnsTemp;
-				pawnChanges++;
-
-				//DEBUG, REMOVE THIS PLS
-				bitBoard temp;
-				temp.pawns = pawnsTemp;
-				temp.printBoard();
+				if (currentBitIndex){
+					unsigned long long pawnIsolate = 2 << currentBitIndex;
+					//Remove it from the copy of the original 
+					pawnsTemp = pawnsTemp ^ pawnIsolate;
+					//Move the pawn forward 2 squares
+					pawnIsolate <<= 16;
+					//Add it back to the original
+					pawnsTemp = pawnsTemp | pawnIsolate;
+					//Append to list
+					pawnMoves[pawnChanges] = pawnsTemp;
+					pawnChanges++;
+				}
 			}
+
+
 
 			
 
@@ -148,26 +179,14 @@ public:
 		}
 
 
-		//ROOK MOVES
-
-		 //KNIGHT MOVES
-		currentBit = 0;
-
-
-		//We need to generate all possible knight moves. We do this by generating all possible knight moves for each knight and then ORing them together.
 		
 
-		//BISHOP MOVES
+		//ILLEGAL MOVES
+		//	If piece's path gets obstructed by another piece
+		//	If piece is overlapping with a friendly piece (opponent piece implies capture)
+		//	If the side is in check and the move doesn't clear a check
 
-		//QUEEN MOVES
-
-		//KING MOVES
-
-
-		/*
-		* CHECKING LEGALITY OF EACH MOVE!
-		*/
-
+		//DEBUGGING: Print all the moves
 
 
 		if (amBlackTemp) {
