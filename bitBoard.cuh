@@ -20,21 +20,6 @@
 
 
 
-/// <summary>
-/// TODO: Documentation
-/// </summary>
-struct movesList {
-	int pawnMoves;
-	int rookMoves;
-	int knightMoves;
-	int bishopMoves;
-	int queenMoves;
-	int kingMoves;
-	bool bShouldBeBlack;
-
-	unsigned long long *allChanges;
-
-};
 
 class bitBoard
 {
@@ -65,16 +50,30 @@ public:
 	/// <returns></returns>
 	__device__ __host__ void flipSide();
 
+	__device__ __host__ bool checkOverlap(unsigned long long pieceRepresentation) {
+		return (pawns & pieceRepresentation) | (rooks & pieceRepresentation) | (knights & pieceRepresentation) | (bishops & pieceRepresentation) | (queens & pieceRepresentation) | (kings & pieceRepresentation);
+	}
+
+	//TODO
+	//Takes an index and checks if a piece can move to that index. Used to prevent king from moving into a position that is being attacked by the opponent
+	__device__ __host__ bool checkIfIndexIsSeen(int index) {
+	//Rook
+
+}
+
+
+
 	/// <summary>
 	/// Generates all possible moves for the current board state. Returns a vector of bitBoards that represent all possible moves. This can be at most 218 moves.
 	/// </summary>
 	/// <TODO>
 	/// - Eliminate branching as much as possible
+	/// - Add King Check
 	/// </TODO>
 	/// <param name="opponentBoard">The opponent's board state: Useful for pawn diagonal capture, eliminating obstructed bishop, rook and queen moves etc. </param>
-	__device__ movesList generateAllStates(bitBoard opponentBoard) {
-		//The logic here is to reduce the amount of data stored in this and also that I can't really create a device_vector for bitBoard. So I'm going to only store the changes in the board state, which of the changes are for which piece and then generate the new board states as needed
-		unsigned long long allChanges[218];
+	__device__ internals::cudaVector<bitBoard> generateAllStates(bitBoard opponentBoard) {
+
+		internals::cudaVector<bitBoard> allMoves(218);
 		int pawnChanges = 0;
 		int rookChanges = 0;
 		int knightChanges = 0;
@@ -115,7 +114,7 @@ public:
 		while (currentBitIndex!=64) {
 			
 			//PAWN MOVES
-			currentPawnBit = pawns & (1 << currentBitIndex);
+			currentPawnBit = pawns & ((unsigned long long) 1 << currentBitIndex);
 			if (currentPawnBit == 1) {
 
 				//These special variables are required because the pawn moves are different based on the opponent piece positions
@@ -143,18 +142,233 @@ public:
 				bool bCanMoveTwoSquares = currentBitIndex < 16 && currentBitIndex + 16 & opponentAllCombined;
 
 
-				
+				//We can't have overlapping pieces so no point evaluating all the pieces for the same location
+				continue;
 			}
 
 
 
-			
+			//ROOK MOVES
+			currentRookBit = rooks & ((unsigned long long) 1 << currentBitIndex);
+			if (currentRookBit == 1) {
+				unsigned long long defaultRookPlace = ((unsigned long long)1 << currentBitIndex);
+				unsigned long long currentRookPlace = defaultRookPlace;
+				
+				//Add all moves towards the left
+				//Check for opponent and rook intersection as well as rook and friendly intersection
+				while (!(opponentBoard.checkOverlap(currentRookPlace) && this->checkOverlap(currentRookPlace))) {
+					//This is placed above so that the last move overlaps with the opponent's piece, implying a capture
+					rookMoves.push_back(currentRookPlace);
+					rookChanges++;
+					currentRookPlace = currentRookPlace << 1;
+				}
 
+				//Add all moves towards the right
+				currentRookPlace = defaultRookPlace;
+				while (!(opponentBoard.checkOverlap(currentRookPlace) && this->checkOverlap(currentRookPlace))) {
+					rookMoves.push_back(currentRookPlace);
+					rookChanges++;
+					currentRookPlace = currentRookPlace >> 1;
+				}
+
+				//Add all moves towards the top
+				currentRookPlace = defaultRookPlace;
+				while(!(opponentBoard.checkOverlap(currentRookPlace) && this->checkOverlap(currentRookPlace))) {
+					rookMoves.push_back(currentRookPlace);
+					rookChanges++;
+					currentRookPlace = currentRookPlace << 8;
+				}
+
+				//Add all moves towards the bottom
+				currentRookPlace = defaultRookPlace;
+				while (!(opponentBoard.checkOverlap(currentRookPlace) && this->checkOverlap(currentRookPlace))) {
+					rookMoves.push_back(currentRookPlace);
+					rookChanges++;
+					currentRookPlace = currentRookPlace >> 8;
+				}
+			}
+			
+			//KNIGHT MOVES
+			currentKnightBit = knights & ((unsigned long long) 1 << currentBitIndex);
+
+			if (currentKnightBit) {
+				unsigned long long defaultKnightPlace = ((unsigned long long)1 << currentBitIndex);
+				unsigned long long currentKnightPlace = defaultKnightPlace;
+
+				internals::cudaVector<unsigned long long> knightMoves(8);
+
+				knightMoves.push_back(currentKnightPlace << 17); //Top right
+				knightMoves.push_back(currentKnightPlace << 15); // Top left
+				knightMoves.push_back(currentKnightPlace << 10); // Right top
+				knightMoves.push_back(currentKnightPlace << 6); // Left top
+
+				knightMoves.push_back(currentKnightPlace >> 17); //Bottom left
+				knightMoves.push_back(currentKnightPlace >> 15); // Bottom right
+				knightMoves.push_back(currentKnightPlace >> 10); // Left bottom
+				knightMoves.push_back(currentKnightPlace >> 6); // Right bottom
+
+				//Remove all moves that are out of bounds or obstructed by friendly/opponent pieces
+				for (int i = 0; i < knightMoves.getSize(); i++) {
+					if (knightMoves[i] >= 0 && knightMoves[i] < 64) {
+						if (!(opponentBoard.checkOverlap(knightMoves[i]) && this->checkOverlap(knightMoves[i]))) {
+							knightMoves.push_back(knightMoves[i]);
+							knightChanges++;
+						}
+					}
+				}				
+				continue;
+			}
+
+			//BISHOP MOVES
+			currentBishopBit = bishops & ((unsigned long long) 1 << currentBitIndex);	
+
+			if (currentBishopBit) {
+				unsigned long long defaultBishopPlace = ((unsigned long long)1 << currentBitIndex);
+				unsigned long long currentBishopPlace = defaultBishopPlace;
+
+				internals::cudaVector<unsigned long long> bishopMoves(13);
+
+				//Add all moves towards the top right
+				while (!(opponentBoard.checkOverlap(currentBishopPlace) && this->checkOverlap(currentBishopPlace))) {
+					bishopMoves.push_back(currentBishopPlace);
+					bishopChanges++;
+					currentBishopPlace = currentBishopPlace << 7;
+				}
+
+				//Add all moves towards the top left
+				currentBishopPlace = defaultBishopPlace;
+				while (!(opponentBoard.checkOverlap(currentBishopPlace) && this->checkOverlap(currentBishopPlace))) {
+					bishopMoves.push_back(currentBishopPlace);
+					bishopChanges++;
+					currentBishopPlace = currentBishopPlace << 9;
+				}
+
+				//Add all moves towards the bottom right
+				currentBishopPlace = defaultBishopPlace;
+				while (!(opponentBoard.checkOverlap(currentBishopPlace) && this->checkOverlap(currentBishopPlace))) {
+					bishopMoves.push_back(currentBishopPlace);
+					bishopChanges++;
+					currentBishopPlace = currentBishopPlace >> 9;
+				}
+
+				//Add all moves towards the bottom left
+				currentBishopPlace = defaultBishopPlace;
+				while (!(opponentBoard.checkOverlap(currentBishopPlace) && this->checkOverlap(currentBishopPlace))) {
+					bishopMoves.push_back(currentBishopPlace);
+					bishopChanges++;
+					currentBishopPlace = currentBishopPlace >> 7;
+				}
+
+				continue;
+			}
+
+			//QUEEN MOVES
+			currentQueenBit = queens & ((unsigned long long) 1 << currentBitIndex);
+			if (currentQueenBit) {
+				unsigned long long defaultQueenPlace = ((unsigned long long)1 << currentBitIndex);
+				unsigned long long currentQueenPlace = defaultQueenPlace;
+
+				//Add all moves towards the left
+				//Check for opponent and rook intersection as well as rook and friendly intersection
+				while (!(opponentBoard.checkOverlap(currentQueenPlace) && this->checkOverlap(currentQueenPlace))) {
+					rookMoves.push_back(currentQueenPlace);
+					rookChanges++;
+					currentQueenPlace = currentQueenPlace << 1;
+				}
+
+				//Add all moves towards the right
+				currentQueenPlace = defaultQueenPlace;
+				while (!(opponentBoard.checkOverlap(currentQueenPlace) && this->checkOverlap(currentQueenPlace))) {
+					rookMoves.push_back(currentQueenPlace);
+					rookChanges++;
+					currentQueenPlace = currentQueenPlace >> 1;
+				}
+
+				//Add all moves towards the top
+				currentQueenPlace = defaultQueenPlace;
+				while (!(opponentBoard.checkOverlap(currentQueenPlace) && this->checkOverlap(currentQueenPlace))) {
+					rookMoves.push_back(currentQueenPlace);
+					rookChanges++;
+					currentQueenPlace = currentQueenPlace << 8;
+				}
+
+				//Add all moves towards the bottom
+				currentQueenPlace = defaultQueenPlace;
+				while (!(opponentBoard.checkOverlap(currentQueenPlace) && this->checkOverlap(currentQueenPlace))) {
+					rookMoves.push_back(currentQueenPlace);
+					rookChanges++;
+					currentQueenPlace = currentQueenPlace >> 8;
+				}
+
+				//Add all moves towards the top right
+				while (!(opponentBoard.checkOverlap(currentQueenPlace) && this->checkOverlap(currentQueenPlace))) {
+					bishopMoves.push_back(currentQueenPlace);
+					bishopChanges++;
+					currentQueenPlace = currentQueenPlace << 7;
+				}
+
+				//Add all moves towards the top left
+				currentQueenPlace = defaultQueenPlace;
+				while (!(opponentBoard.checkOverlap(currentQueenPlace) && this->checkOverlap(currentQueenPlace))) {
+					bishopMoves.push_back(currentQueenPlace);
+					bishopChanges++;
+					currentQueenPlace = currentQueenPlace << 9;
+				}
+
+				//Add all moves towards the bottom right
+				currentQueenPlace = defaultQueenPlace;
+				while (!(opponentBoard.checkOverlap(currentQueenPlace) && this->checkOverlap(currentQueenPlace))) {
+					bishopMoves.push_back(currentQueenPlace);
+					bishopChanges++;
+					currentQueenPlace = currentQueenPlace >> 9;
+				}
+
+				//Add all moves towards the bottom left
+				currentQueenPlace = defaultQueenPlace;
+				while (!(opponentBoard.checkOverlap(currentQueenPlace) && this->checkOverlap(currentQueenPlace))) {
+					bishopMoves.push_back(currentQueenPlace);
+					bishopChanges++;
+					currentQueenPlace = currentQueenPlace >> 7;
+				}
+			}
+
+			//KING MOVES
+			//This is a bit more complicated because the king can't move into a position that is being attacked by the opponent
+			currentKingBit = kings & ((unsigned long long) 1 << currentBitIndex);
+			if (currentKingBit) {
+				unsigned long long defaultKingPlace = ((unsigned long long)1 << currentBitIndex);
+				unsigned long long currentKingPlace = defaultKingPlace;
+
+				internals::cudaVector<unsigned long long> kingMoves(8);
+
+				kingMoves.push_back(currentKingPlace << 1); //Right
+				kingMoves.push_back(currentKingPlace >> 1); //Left
+				kingMoves.push_back(currentKingPlace << 8); //Top
+				kingMoves.push_back(currentKingPlace >> 8); //Bottom
+
+				kingMoves.push_back(currentKingPlace << 7); //Top right
+				kingMoves.push_back(currentKingPlace << 9); //Top left
+				kingMoves.push_back(currentKingPlace >> 7); //Bottom right
+				kingMoves.push_back(currentKingPlace >> 9); //Bottom left
+
+				//Remove all moves that are out of bounds or obstructed by friendly/opponent pieces
+				for (int i = 0; i < kingMoves.getSize(); i++) {
+					//Bounds check
+					if (kingMoves[i] >= 0 && kingMoves[i] < 64) {
+						//Overlap check (SPECIAL: Also check if the move is being attacked by the opponent)
+						if (!(opponentBoard.checkOverlap(kingMoves[i]) && this->checkOverlap(kingMoves[i])) && !opponentBoard.checkIfIndexIsSeen(kingMoves[i])) {
+							kingMoves.push_back(kingMoves[i]);
+							kingChanges++;
+						}
+					}
+				}
+				continue;
+			}
 			currentBitIndex++;
 		}
 
 
-		
+		//TODO: Process captures and illegal moves
 
 		//ILLEGAL MOVES
 		//	If piece's path gets obstructed by another piece
@@ -164,21 +378,13 @@ public:
 		//DEBUGGING: Print all the moves
 
 
+
+
 		if (amBlackTemp) {
 			this->flipSide();
 		}
 		//TODO: The changes may need to be flipped back as well
-		return {
-			pawnChanges,
-			rookChanges,
-			knightChanges,
-			bishopChanges,
-			queenChanges,
-			kingChanges,
-			amBlackTemp,
-
-			allChanges
-		};
+		return allMoves;
 	}
 };
 
